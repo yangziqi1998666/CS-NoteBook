@@ -1,8 +1,17 @@
 # Transport Layer
 
-- [Transport Layer](#transport-layer)
-  - [User Datagram Protocol - UDP](#user-datagram-protocol---udp)
-  - [Transport Control Protocol](#transport-control-protocol)
+* [Transport Layer](#transport-layer)
+   * [User Datagram Protocol - UDP](#user-datagram-protocol---udp)
+   * [Transport Control Protocol - TCP](#transport-control-protocol---tcp)
+      * [1. TCP Connection Set-up](#1-tcp-connection-set-up)
+      * [2. Data Transfer Phase](#2-data-transfer-phase)
+      * [3. Connection termination](#3-connection-termination)
+      * [4. FLow Control](#4-flow-control)
+      * [5. Send Window, Receive Window](#5-send-window-receive-window)
+      * [6. Congestion Control](#6-congestion-control)
+         * [Tahoe](#tahoe)
+         * [Reno](#reno)
+      * [7. AIMD Approach (No SS)](#7-aimd-approach-no-ss)
 
 The transport layer provides services to the application layer and takes services from the network layer. The data in the transport layer is referred to as *Segments*. It is responsible for the End to End Delivery of the complete message. The transport layer also provides the acknowledgement of the successful data transmission and re-transmits the data if an error is found. 
 
@@ -123,11 +132,71 @@ sender won’t overflow receiver’s buffer by transmitting too much, too fast
 * IP does not provide any mechanism for congestion control. It is up to TCP to detect congestion
 * Define another window, called congestion window, w c that determines the maximum number of bytes that can be transmitted without congesting the network
 * **Max # of bytes that can be sent = min ( Wa , Wc )**
+* MSS: maximum segment size
 
+#### Tahoe
 
+![image-20211206140044265](image/image-20211206140044265.png)
 
-Tahoe
+1. **Slow Start**
 
+   Start by setting the congestion window, w c to one MSS. Each time the sender receives an ACK it increases its congestion window by one and so on. Hence, w c = w c +1 for every ACK received. This phase is referred to as the “Slow Start Phase”. In SS the congestion window increases exponentially
 
+2. **Congestion avoidance**
 
-Reno
+   As the congestion window reaches a threshold value, the congestion window starts to increase linearly. This phase is referred to Congestion Avoidance Phase. In this phase the congestion window is increased by one segment every RTT, i.e. w c = w c +(1/w c ) for every ACK received
+
+3. **Congestion control**
+
+   The congestion window stops increasing when the client TCP detects the network is congested. This happens when an ACK doesn’t arrive before the time-out expires. In this phase the congestion threshold is set to 1/2 the current window size which is the min ( w a , w c ). The Congestion Control (Cont.) congestion window is then reset to one segment and the slow start phase is repeated. This phase is referred to as Congestion Control
+
+   ![image-20211206140510868](image/image-20211206140510868.png)
+
+#### Reno
+
+A time-out occur -> identical to Tahoe , **Fast retransmit**
+
+3 dup Acks -> not.  ---> **Fast Recovery state**, skip SS
+
+![image-20211206141206889](image/image-20211206141206889.png)
+
+![image-20211206142215590](image/image-20211206142215590.png)
+
+![image-20211206141357636](image/image-20211206141357636.png)
+
+TCP 主要通过四个算法来进行拥塞控制：慢开始、拥塞避免、快重传、快恢复。
+
+发送方需要维护一个叫做拥塞窗口（cwnd）的状态变量，注意拥塞窗口与发送方窗口的区别：拥塞窗口只是一个状态变量，实际决定发送方能发送多少数据的是发送方窗口。
+
+为了便于讨论，做如下假设：
+
+- 接收方有足够大的接收缓存，因此不会发生流量控制；
+- 虽然 TCP 的窗口基于字节，但是这里设窗口的大小单位为报文段。
+
+<img src="image/image-20211206141818265.png" alt="image-20211206141818265" style="zoom:50%;" />
+
+1. **慢开始与拥塞避免**
+
+发送的最初执行慢开始，令 cwnd = 1，发送方只能发送 1 个报文段；当收到确认后，将 cwnd 加倍，因此之后发送方能够发送的报文段数量为：2、4、8 ...
+
+注意到慢开始每个轮次都将 cwnd 加倍，这样会让 cwnd 增长速度非常快，从而使得发送方发送的速度增长速度过快，网络拥塞的可能性也就更高。设置一个慢开始门限 ssthresh，当 cwnd >= ssthresh 时，进入拥塞避免，每个轮次只将 cwnd 加 1。
+
+如果出现了超时，则令 ssthresh = cwnd / 2，然后重新执行慢开始。
+
+2. **快重传与快恢复**
+
+在接收方，要求每次接收到报文段都应该对最后一个已收到的有序报文段进行确认。例如已经接收到 M1 和 M2，此时收到 M4，应当发送对 M2 的确认。
+
+在发送方，如果收到三个重复确认，那么可以知道下一个报文段丢失，此时执行快重传，立即重传下一个报文段。例如收到三个 M2，则 M3 丢失，立即重传 M3。
+
+在这种情况下，只是丢失个别报文段，而不是网络拥塞。因此执行快恢复，令 ssthresh = cwnd / 2 ，cwnd = ssthresh，注意到此时直接进入拥塞避免。
+
+慢开始和快恢复的快慢指的是 cwnd 的设定值，而不是 cwnd 的增长速率。慢开始 cwnd 设定为 1，而快恢复 cwnd 设定为 ssthresh。
+
+<img src="image/image-20211206141838544.png" alt="image-20211206141838544" style="zoom:50%;" />
+
+### 7. AIMD Approach (No SS)
+
+Additive Increase Multiplicative Decrease
+
+![image-20211206142928519](image/image-20211206142928519.png)
