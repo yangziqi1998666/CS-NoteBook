@@ -28,7 +28,7 @@ Routing information protocol
 >
 > ![image-20211205222102507](image/image-20211205222102507.png)
 
-
+![image-20211207155522138](image/image-20211207155522138.png)
 
 ### 2.Link State Routing(OSPF)
 
